@@ -22,23 +22,40 @@
     <div>
       <span id="score">0</span>
       <span id="best">Рекорд 0</span>
+      <span id="lives" aria-label="Жизни"></span>
+      <span id="coins" aria-label="Монеты"><i class="coin"></i><b id="coin-count">0</b></span>
     </div>
-    <button id="mute" type="button" aria-label="Звук">🔊</button>
+    <div id="right">
+      <button id="mute" type="button" aria-label="Звук">🔊</button>
+      <span id="level">Уровень 1</span>
+      <span id="progress" aria-hidden="true"><i id="progress-fill"></i></span>
+    </div>
   </div>
 
   <div id="start" class="overlay">
     <p class="eyebrow">Игра Егора</p>
     <h1>Стрекоза</h1>
     <p>Тапни — стрекоза подпрыгнет.<br>Держи палец дольше — взлетит выше.</p>
+    <p class="small">Золотое облачко даёт монетки, сердечко — жизнь.<br>Чёрное облачко, камни и кусты — опасны!<br>Долети до флажка — откроется следующий уровень.</p>
+    <p id="start-level" class="small">Уровень 1</p>
+    <button id="reset-level" class="link hidden" type="button">начать с первого уровня</button>
     <p class="tap-hint">Нажми, чтобы начать</p>
   </div>
 
   <div id="over" class="overlay hidden">
     <h1>Ой!</h1>
+    <p id="over-level" class="small">Уровень 1</p>
     <p id="record" class="badge hidden">Новый рекорд!</p>
     <p class="big">Очки: <b id="final-score">0</b></p>
+    <p>Монеты: <b id="final-coins">0</b> · всего <b id="total-coins">0</b></p>
     <p>Рекорд: <b id="final-best">0</b></p>
     <button class="btn" type="button">Ещё раз</button>
+  </div>
+
+  <div id="done" class="overlay hidden">
+    <h1 id="done-title">Уровень 1 пройден!</h1>
+    <p id="done-text" class="big">Монеты: 0</p>
+    <button id="done-btn" class="btn" type="button">Дальше</button>
   </div>
 
   <div id="pause" class="overlay hidden">
