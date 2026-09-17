@@ -36,15 +36,16 @@ html, body {
 #lives .lost { opacity: .3; }
 #coins { display: inline-flex; align-items: center; gap: 6px; margin-top: 6px; font-size: 18px; font-weight: 800; }
 .coin { width: 16px; height: 16px; border-radius: 50%; border: 3px solid #d9a800; background: #ffd94d; }
-#mute {
+.hud-btn {
   pointer-events: auto;
   width: 44px; height: 44px; padding: 0;
   border: 0; border-radius: 50%;
   background: rgba(255, 255, 255, .25);
-  font-size: 22px; line-height: 44px;
+  color: #fff; font-size: 22px; line-height: 44px;
   cursor: pointer;
 }
 #right { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+#right .row { gap: 8px; }
 #level { font-size: 15px; font-weight: 700; }
 #progress { width: 72px; height: 6px; border-radius: 3px; background: rgba(255, 255, 255, .35); overflow: hidden; }
 #progress i { display: block; width: 0; height: 100%; background: #fff; transition: width .3s; }

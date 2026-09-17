@@ -9,7 +9,8 @@
   function withContext(c, fn) { const main = ctx; ctx = c; try { fn(); } finally { ctx = main; } }
   const ui = {
     score: $('score'), best: $('best'), lives: $('lives'), coins: $('coin-count'), coinPlus: $('coin-plus'),
-    mute: $('mute'), level: $('level'), progress: $('progress-fill'),
+    mute: $('mute'), pauseBtn: $('pause-btn'), resumeBtn: $('resume-btn'), menuBtn: $('menu-btn'),
+    level: $('level'), progress: $('progress-fill'),
     start: $('start'), over: $('over'), pause: $('pause'), done: $('done'), profile: $('profile'), board: $('board'),
     rules: $('rules'), playerName: $('player-name'), editName: $('edit-name'), boardOpen: $('board-open'),
     startLevel: $('start-level'), resetLevel: $('reset-level'), tapHint: $('tap-hint'),
@@ -206,6 +207,14 @@
   }
   function pause() { state = 'paused'; saveRun(); showOverlay(ui.pause); }
   function resume() { state = 'playing'; lastTs = null; showOverlay(null); }
+  // В главное меню: забег сохраняется, уровень потом начнётся заново с теми же очками и жизнями.
+  function toMenu() {
+    setupRun(score, lives);
+    state = 'ready';
+    updateHud();
+    updateStartLabel();
+    showOverlay(ui.start);
+  }
 
   function nextLevel() {
     if (level >= BOSS_LEVEL) { level = 1; setupRun(0, CFG.lives); play(); return; }
@@ -264,6 +273,7 @@
 
   function showOverlay(el) {
     for (const o of [ui.start, ui.over, ui.pause, ui.done, ui.profile, ui.board, ui.shop]) o.classList.toggle('hidden', o !== el);
+    ui.pauseBtn.classList.toggle('hidden', el !== null); // кнопка паузы — только во время игры
   }
   function updateHud() {
     ui.score.textContent = score;
@@ -623,13 +633,18 @@
   window.addEventListener('pointercancel', release);
   window.addEventListener('keydown', (e) => {
     if (e.target.tagName === 'INPUT') return;
+    if (e.code === 'Escape') {
+      if (state === 'playing') pause();
+      else if (state === 'paused') resume();
+      return;
+    }
     if ((e.code === 'Space' || e.code === 'ArrowUp') && !e.repeat) press(e);
   });
   window.addEventListener('keyup', (e) => {
     if (e.code === 'Space' || e.code === 'ArrowUp') release();
   });
   // Кнопки и экраны с формами не должны запускать игру или прыжок.
-  for (const el of [ui.mute, ui.resetLevel, ui.editName, ui.boardOpen, ui.shopOpen, ui.profile, ui.board, ui.shop]) {
+  for (const el of [ui.mute, ui.pauseBtn, ui.resetLevel, ui.editName, ui.boardOpen, ui.shopOpen, ui.profile, ui.board, ui.shop, ui.pause]) {
     el.addEventListener('pointerdown', (e) => e.stopPropagation());
   }
   ui.mute.addEventListener('click', () => {
@@ -637,6 +652,9 @@
     save(KEYS.mute, muted ? '1' : '0');
     ui.mute.textContent = muted ? '🔇' : '🔊';
   });
+  ui.pauseBtn.addEventListener('click', () => { if (state === 'playing') pause(); });
+  ui.resumeBtn.addEventListener('click', () => { if (state === 'paused') resume(); });
+  ui.menuBtn.addEventListener('click', () => { if (state === 'paused') toMenu(); });
   ui.resetLevel.addEventListener('click', () => {
     level = 1;
     setupRun(0, CFG.lives);
