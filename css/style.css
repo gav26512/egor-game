@@ -99,7 +99,12 @@ html, body {
 #board td:nth-child(2) { max-width: 140px; overflow: hidden; text-overflow: ellipsis; }
 #board tr.me td { background: rgba(255, 255, 255, .18); font-weight: 800; }
 
-#shop-items { display: flex; flex-direction: column; gap: 8px; width: min(90vw, 340px); }
+#shop-items {
+  display: flex; flex-direction: column; gap: 8px;
+  width: min(90vw, 340px); max-height: 46vh; padding: 2px;
+  overflow-y: auto; touch-action: pan-y; /* список длинный — прокручивается сам, экран остаётся неподвижным */
+}
+#shop { padding-bottom: 24px; } /* без сдвига вверх, иначе заголовок наезжает на счёт */
 .skin {
   display: flex; align-items: center; gap: 8px;
   padding: 4px 10px 4px 4px; border-radius: 18px;
