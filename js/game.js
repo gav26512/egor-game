@@ -65,6 +65,12 @@
     { id: 'gold', name: 'Золотая', price: 100, tail: '#f2c230', stripe: '#b8860b', thorax: '#e8b420', head: '#ffd23f', smile: '#8a6400', wing: 'rgba(255,245,205,0.85)', wingStroke: 'rgba(200,150,40,0.9)' },
     { id: 'red', name: 'Красная', price: 50, tail: '#e8443a', stripe: '#a32a22', thorax: '#d93d33', head: '#ff5a4f', smile: '#7a1a12', wing: 'rgba(255,228,228,0.85)', wingStroke: 'rgba(200,80,70,0.9)' },
     { id: 'emerald', name: 'Изумрудная', price: 50, tail: '#2ecc71', stripe: '#1e8a4c', thorax: '#27b463', head: '#3ddc84', smile: '#14663a', wing: 'rgba(222,255,236,0.85)', wingStroke: 'rgba(60,170,110,0.9)' },
+    { id: 'blue', name: 'Синяя', price: 100, tail: '#3f51b5', stripe: '#1a237e', thorax: '#3949ab', head: '#5c6bc0', smile: '#0d1b6b', wing: 'rgba(222,226,255,0.85)', wingStroke: 'rgba(80,100,220,0.9)' },
+    { id: 'purple', name: 'Фиолетовая', price: 100, tail: '#8e44ad', stripe: '#5b2c6f', thorax: '#9b59b6', head: '#a569bd', smile: '#4a235a', wing: 'rgba(240,222,255,0.85)', wingStroke: 'rgba(150,90,200,0.9)' },
+    { id: 'pink', name: 'Розовая', price: 100, tail: '#ff5fa2', stripe: '#c2185b', thorax: '#ff4f9a', head: '#ff80bf', smile: '#880e4f', wing: 'rgba(255,226,240,0.85)', wingStroke: 'rgba(230,100,160,0.9)' },
+    { id: 'orange', name: 'Оранжевая', price: 100, tail: '#ff9800', stripe: '#e65100', thorax: '#fb8c00', head: '#ffb74d', smile: '#bf360c', wing: 'rgba(255,240,212,0.85)', wingStroke: 'rgba(230,140,40,0.9)' },
+    { id: 'fire', name: 'Огненная', price: 100, fx: 'fire', tail: '#ff6a00', stripe: '#b71c1c', thorax: '#ff3d00', head: '#ff8f00', smile: '#7f0000', wing: 'rgba(255,205,90,0.8)', wingStroke: 'rgba(255,90,0,0.9)' },
+    { id: 'water', name: 'Водяная', price: 100, fx: 'water', tail: '#29b6f6', stripe: '#0277bd', thorax: '#03a9f4', head: '#4fc3f7', smile: '#01579b', wing: 'rgba(205,240,255,0.85)', wingStroke: 'rgba(0,150,220,0.9)' },
     { id: 'teal', name: 'Бирюзовая', price: 0, tail: '#2bb3a8', stripe: '#1c7f78', thorax: '#2fa88f', head: '#33b8ad', smile: '#0f5a52', wing: 'rgba(236,248,255,0.85)', wingStroke: 'rgba(70,140,210,0.9)' },
   ];
   const KEYS = {
@@ -681,8 +687,8 @@
   document.addEventListener('visibilitychange', () => {
     if (document.hidden && state === 'playing') pause();
   });
-  for (const ev of ['touchmove', 'gesturestart', 'contextmenu']) {
-    document.addEventListener(ev, (e) => { if (e.target.tagName !== 'INPUT') e.preventDefault(); }, { passive: false });
+  for (const ev of ['touchmove', 'gesturestart', 'contextmenu']) { // поле имени и список магазина — единственные, где жесты нужны
+    document.addEventListener(ev, (e) => { if (!e.target.closest('input, #shop-items')) e.preventDefault(); }, { passive: false });
   }
   window.addEventListener('resize', resize);
 
@@ -1011,6 +1017,18 @@
   function drawDragonfly(pal, flap, tilt) {
     ctx.save();
     ctx.rotate(tilt);
+    if (pal.fx === 'fire') { // языки пламени за хвостом дрожат
+      for (let i = 0; i < 4; i++) {
+        ctx.fillStyle = i % 2 ? 'rgba(255,200,40,0.85)' : 'rgba(255,90,0,0.8)';
+        circle(-42 - i * 4 - 3 * Math.sin(clock * 25 + i * 2), 3 * Math.sin(clock * 31 + i), 4.5 - i * 0.6);
+      }
+    } else if (pal.fx === 'water') { // пузырьки уплывают назад и вверх
+      ctx.fillStyle = 'rgba(180,230,255,0.85)';
+      for (let i = 0; i < 3; i++) {
+        const t = (clock * 1.5 + i / 3) % 1;
+        circle(-42 - t * 20, (i - 1) * 4 - t * 8, 3 - t * 1.5);
+      }
+    }
     wings(pal, flap, -1, 0.9);
     wings(pal, flap, 1, 0.55);
     // хвост с полосками
