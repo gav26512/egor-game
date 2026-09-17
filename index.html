@@ -26,7 +26,10 @@
       <span id="coins" aria-label="Монеты"><i class="coin"></i><b id="coin-count">0</b><small id="coin-plus"></small></span>
     </div>
     <div id="right">
-      <button id="mute" type="button" aria-label="Звук">🔊</button>
+      <span class="row">
+        <button id="pause-btn" class="hud-btn hidden" type="button" aria-label="Пауза">⏸</button>
+        <button id="mute" class="hud-btn" type="button" aria-label="Звук">🔊</button>
+      </span>
       <span id="level">Уровень 1</span>
       <span id="progress" aria-hidden="true"><i id="progress-fill"></i></span>
     </div>
@@ -89,7 +92,8 @@
 
   <div id="pause" class="overlay hidden">
     <h1>Пауза</h1>
-    <p class="tap-hint">Нажми, чтобы продолжить</p>
+    <button id="resume-btn" class="btn" type="button">Продолжить</button>
+    <button id="menu-btn" class="link" type="button">В главное меню</button>
   </div>
 
   <script src="js/game.js"></script>
