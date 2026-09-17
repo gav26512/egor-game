@@ -27,6 +27,7 @@
     jumpCut: -400,              // потолок скорости вверх после отпускания: короткий тап — низкий прыжок
     hoverHeight: 52,            // высота полёта над травой в покое
     levels: 10,
+    bossAttacks: 8,             // сколько раз лягушка стреляет языком
     lives: 3, livesMax: 5,
     hurtTime: 1.5,              // неуязвимость после удара, с
     goldCoins: 5, heartCoins: 10,
@@ -34,6 +35,7 @@
     restartDelay: 500,
     nameMax: 16,
   };
+  const BOSS_LEVEL = CFG.levels + 1; // болото с лягушкой после десятого уровня
   // С каждым уровнем быстрее, теснее и больше чёрных облачков.
   function levelCfg(n) {
     const k = (n - 1) / (CFG.levels - 1);
@@ -73,6 +75,7 @@
   let W = 0, H = 0, groundY = 0;
   let state = 'ready';                 // ready | playing | paused | over | done
   let hero, obstacles, pickups, pops, clouds, finish;
+  let boss;                            // лягушка на болоте, только на BOSS_LEVEL
   let level = 1, lvl, slotsLeft;
   let speed, distance, score, nextSpawn, lives, levelCoins, hurt;
   let best = 0, coins = 0, muted = false;
@@ -83,6 +86,7 @@
   const rand = (a, b) => a + Math.random() * (b - a);
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
   const restY = () => groundY - CFG.hoverHeight;
+  const levelName = () => (level > CFG.levels ? 'Лягушка!' : 'Уровень ' + level);
   const hits = (a, b) => a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
   const heroBox = () => ({ x: hero.x - hero.w / 2, y: hero.y - hero.h / 2, w: hero.w, h: hero.h });
   // Воздушные объекты хранят dy — высоту над точкой покоя; качание — только в рисовании.
@@ -145,6 +149,9 @@
       hit: () => tone(160, 0.25, 'square', 0.08, 80),
       crash: () => tone(220, 0.4, 'sawtooth', 0.09, 50),
       fanfare: () => [660, 880, 1100].forEach((f, i) => setTimeout(() => tone(f, 0.15, 'triangle', 0.09), i * 110)),
+      croak: () => tone(140, 0.25, 'sawtooth', 0.07, 90),
+      tongue: () => tone(900, 0.1, 'square', 0.04, 300),
+      gulp: () => tone(320, 0.25, 'sine', 0.1, 110),
     };
   })();
 
@@ -174,7 +181,8 @@
     startLevel();
   }
   function startLevel() {
-    lvl = levelCfg(level);
+    boss = level === BOSS_LEVEL ? makeBoss() : null;
+    lvl = boss ? { slots: CFG.bossAttacks, speedStart: 380, gapMin: 2.0, gapMax: 3.0 } : levelCfg(level);
     hero = { x: Math.round(W * 0.22), y: restY(), vy: 0, onGround: true, w: 44, h: 16 }; // хитбокс — только тело
     obstacles = []; pickups = []; pops = []; finish = null;
     speed = lvl.speedStart;
@@ -200,7 +208,7 @@
   function resume() { state = 'playing'; lastTs = null; showOverlay(null); }
 
   function nextLevel() {
-    if (level >= CFG.levels) { level = 1; setupRun(0, CFG.lives); play(); return; }
+    if (level >= BOSS_LEVEL) { level = 1; setupRun(0, CFG.lives); play(); return; }
     level++;
     startLevel();
     play();
@@ -215,17 +223,19 @@
   function levelComplete() {
     state = 'done';
     overAt = performance.now();
-    if (level >= CFG.levels) {
+    if (level >= BOSS_LEVEL) {
       finishRun();
-      updateBoard(CFG.levels);
+      updateBoard(BOSS_LEVEL);
       ui.doneTitle.textContent = 'Победа!';
-      ui.doneText.textContent = `Все ${CFG.levels} уровней пройдены! Очки: ${score}`;
+      ui.doneText.textContent = `Лягушка осталась голодной! Очки: ${score}`;
       ui.doneBtn.textContent = 'Сначала';
     } else {
       saveRun(level + 1);
       updateBoard(level + 1);
       ui.doneTitle.textContent = `Уровень ${level} пройден!`;
-      ui.doneText.textContent = `Монеты за уровень: +${levelCoins} · всего ${coins}`;
+      ui.doneText.textContent = level === CFG.levels
+        ? 'Впереди болото — берегись лягушки!'
+        : `Монеты за уровень: +${levelCoins} · всего ${coins}`;
       ui.doneBtn.textContent = 'Дальше';
     }
     if (navigator.vibrate) navigator.vibrate([40, 40, 40]);
@@ -246,7 +256,7 @@
     ui.finalScore.textContent = score;
     ui.finalBest.textContent = best;
     ui.finalCoins.textContent = coins;
-    ui.overLevel.textContent = 'Уровень ' + level;
+    ui.overLevel.textContent = levelName();
     ui.record.classList.toggle('hidden', !isRecord);
     showOverlay(ui.over);
     updateHud();
@@ -261,7 +271,7 @@
     ui.lives.innerHTML = '♥'.repeat(lives) + '<span class="lost">' + '♥'.repeat(CFG.livesMax - lives) + '</span>';
     ui.coins.textContent = coins;
     ui.coinPlus.textContent = levelCoins > 0 ? '+' + levelCoins : '';
-    ui.level.textContent = 'Уровень ' + level;
+    ui.level.textContent = levelName();
     updateProgress();
   }
   function updateProgress() {
@@ -271,7 +281,7 @@
     const resumed = score > 0;
     ui.playerName.textContent = player.name;
     ui.rules.classList.toggle('hidden', best > 0 || level > 1); // правила — только новичку
-    ui.startLevel.textContent = resumed ? `Уровень ${level} · Очки ${score} · ${'♥'.repeat(lives)}` : `Уровень ${level}`;
+    ui.startLevel.textContent = resumed ? `${levelName()} · Очки ${score} · ${'♥'.repeat(lives)}` : levelName();
     ui.tapHint.textContent = resumed ? 'Нажми, чтобы продолжить' : 'Нажми, чтобы начать';
     ui.resetLevel.classList.toggle('hidden', level <= 1 && !resumed);
   }
@@ -386,8 +396,113 @@
     return { type: 'dark', x, w: 60, h: 34, dy, phase: rand(0, 6.28) };
   }
 
+  // ---------- лягушка ----------
+  // Фазы: enter → idle → windup («!», цель берётся в начале) → shoot → hold → retract → … → tired → gone.
+  function makeBoss() {
+    const b = { phase: 'enter', t: 0, attacks: 0, dy: 90, mouth: 0, wait: 1.4, tip: null, target: null, grab: null, ripples: [] };
+    b.ripples.push({ x: W - 88, y: groundY + 4, r: 6, t: 0 }, { x: W - 88, y: groundY + 4, r: 24, t: 0.3 });
+    return b;
+  }
+  const frogPos = () => ({ x: W - 88, y: groundY - 26 + boss.dy });
+  const mouthPos = () => { const f = frogPos(); return { x: f.x - 40, y: f.y + 6 }; };
+  function setPhase(p) { boss.phase = p; boss.t = 0; }
+
+  function updateBoss(dt) {
+    const b = boss, m = mouthPos();
+    b.t += dt;
+    for (let i = b.ripples.length - 1; i >= 0; i--) {
+      const r = b.ripples[i];
+      r.t += dt;
+      r.r += 70 * dt;
+      if (r.t > 1) b.ripples.splice(i, 1);
+    }
+    switch (b.phase) {
+      case 'enter':
+        b.dy = 90 * Math.max(0, 1 - b.t / 1.2) ** 2;
+        if (b.t >= 1.2) { b.dy = 0; setPhase('idle'); }
+        break;
+      case 'idle':
+        b.mouth = Math.max(0, b.mouth - 4 * dt);
+        if (b.t >= b.wait) { b.target = { x: hero.x + 6, y: hero.y }; setPhase('windup'); sfx.croak(); }
+        break;
+      case 'windup':
+        b.mouth = Math.min(1, b.t / 0.4);
+        if (b.t >= 0.5) { b.tip = { ...m }; setPhase('shoot'); sfx.tongue(); }
+        break;
+      case 'shoot': {
+        const k = Math.min(1, b.t / 0.15);
+        b.tip = { x: m.x + (b.target.x - m.x) * k, y: m.y + (b.target.y - m.y) * k };
+        if (tongueHits()) catchHero();
+        else if (k >= 1) setPhase('hold');
+        break;
+      }
+      case 'hold':
+        if (tongueHits()) catchHero();
+        else if (b.t >= 0.08) setPhase('retract');
+        break;
+      case 'retract': {
+        const k = Math.min(1, b.t / 0.2);
+        b.tip = { x: b.target.x + (m.x - b.target.x) * k, y: b.target.y + (m.y - b.target.y) * k };
+        if (k >= 1) { b.tip = null; endAttack(); }
+        break;
+      }
+      case 'caught': { // язык тянет стрекозу в рот
+        const k = Math.min(1, b.t / 0.35);
+        hero.x = b.grab.x + (m.x - b.grab.x) * k;
+        hero.y = b.grab.y + (m.y - b.grab.y) * k;
+        b.tip = { x: hero.x, y: hero.y };
+        if (k >= 1) {
+          b.tip = null;
+          b.mouth = 0;
+          sfx.gulp();
+          loseLife();
+          hero.x = Math.round(W * 0.22); hero.y = restY(); hero.vy = 0; hero.onGround = true;
+          if (state === 'playing') endAttack();
+        }
+        break;
+      }
+      case 'tired':
+        if (b.t > 0.8 && !b.splashed) {
+          b.splashed = true;
+          b.ripples.push({ x: W - 88, y: groundY + 4, r: 6, t: 0 }, { x: W - 88, y: groundY + 4, r: 24, t: 0.3 });
+        }
+        if (b.t > 0.8) b.dy = Math.min(130, (b.t - 0.8) * 110);
+        if (b.t >= 2.2) { setPhase('gone'); finish = { x: W + 40 }; }
+        break;
+      default: // gone
+    }
+  }
+  function tongueHits() {
+    if (hurt > 0) return false;
+    const m = mouthPos(), t = boss.tip;
+    for (let k = 0; k <= 1.001; k += 0.1) {
+      const px = m.x + (t.x - m.x) * k, py = m.y + (t.y - m.y) * k;
+      if (Math.abs(px - hero.x) < hero.w / 2 + 8 && Math.abs(py - hero.y) < hero.h / 2 + 8) return true;
+    }
+    return false;
+  }
+  function catchHero() {
+    boss.grab = { x: hero.x, y: hero.y };
+    hero.onGround = true;
+    hero.vy = 0;
+    setPhase('caught');
+    pop(hero.x, hero.y - 30, 'Ам!', '#ff6f91');
+  }
+  function endAttack() {
+    boss.attacks++;
+    slotsLeft = CFG.bossAttacks - boss.attacks;
+    updateProgress();
+    if (boss.attacks >= CFG.bossAttacks) {
+      setPhase('tired');
+      pop(frogPos().x - 10, frogPos().y - 70, 'Уф!', '#fff');
+    } else {
+      setPhase('idle');
+      boss.wait = rand(1.0, 1.8);
+    }
+  }
+
   function jump() {
-    if (!hero.onGround) return;
+    if (!hero.onGround || (boss && boss.phase === 'caught')) return;
     hero.onGround = false;
     hero.vy = CFG.jumpVel;
     sfx.jump();
@@ -432,7 +547,7 @@
 
   function update(dt) {
     if (hurt > 0) hurt -= dt;
-    speed = Math.min(CFG.speedMax, speed + CFG.speedGain * dt);
+    if (!boss) speed = Math.min(CFG.speedMax, speed + CFG.speedGain * dt);
     const dx = speed * dt;
     distance += dx;
     const s = Math.floor(distance * CFG.scorePerPx);
@@ -448,7 +563,16 @@
     for (const p of pickups) p.x -= dx;
     while (obstacles.length && obstacles[0].x + obstacles[0].w < -20) obstacles.shift();
     while (pickups.length && pickups[0].x + pickups[0].w < -20) pickups.shift();
-    if (distance >= nextSpawn) {
+    if (boss) {
+      updateBoss(dt);
+      if (state !== 'playing') return; // лягушка могла съесть последнюю жизнь
+      if (distance >= nextSpawn) { // на болоте только призы: облачка и сердечки
+        pickups.push(Math.random() < 0.7
+          ? { type: 'gold', x: W + 40, w: 60, h: 34, dy: rand(0, 130), phase: rand(0, 6.28) }
+          : { type: 'heart', x: W + 40, w: 30, h: 28, dy: rand(90, 140), phase: rand(0, 6.28) });
+        nextSpawn = distance + speed * rand(lvl.gapMin, lvl.gapMax);
+      }
+    } else if (distance >= nextSpawn) {
       if (slotsLeft > 0) spawnSlot();
       else if (!finish) { finish = { x: W + 40 }; nextSpawn = Infinity; }
     }
@@ -633,30 +757,13 @@
       ctx.fill();
     }
 
-    ctx.fillStyle = '#4aa54a';
-    ctx.fillRect(0, groundY, W, H - groundY);
-    ctx.fillStyle = '#6cc36c';
-    ctx.fillRect(0, groundY, W, 6);
-
-    ctx.strokeStyle = '#2f7d2f';
-    ctx.lineWidth = 2;
-    ctx.lineCap = 'round';
-    const tp = 44, to = -(distance % tp);
-    for (let x = to; x < W + tp; x += tp) {
-      line(x, groundY + 4, x - 4, groundY - 8);
-      line(x + 3, groundY + 4, x + 6, groundY - 7);
-    }
-    const fp = 150, fo = -(distance % fp);
-    for (let x = fo; x < W + fp; x += fp) {
-      ctx.fillStyle = '#fff';
-      circle(x + 40, groundY + 28, 4);
-      ctx.fillStyle = '#ffd94d';
-      circle(x + 40, groundY + 28, 1.8);
-    }
+    if (boss) drawPond();
+    else drawMeadow();
 
     if (finish) drawFinish(finish.x);
     for (const o of obstacles) drawObstacle(o);
     for (const p of pickups) drawPickup(p);
+    if (boss) drawFrog();
     drawHero();
     drawPops();
 
@@ -679,6 +786,122 @@
         ctx.fillStyle = (r + c) % 2 ? '#222' : '#fff';
         ctx.fillRect(x + 2 + c * 9, top + r * 9, 9, 9);
       }
+    }
+  }
+
+  function ellipse(x, y, rx, ry) { ctx.beginPath(); ctx.ellipse(x, y, rx, ry, 0, 0, Math.PI * 2); ctx.fill(); }
+
+  // Луг: трава, травинки и цветы бегут со скоростью мира.
+  function drawMeadow() {
+    ctx.fillStyle = '#4aa54a';
+    ctx.fillRect(0, groundY, W, H - groundY);
+    ctx.fillStyle = '#6cc36c';
+    ctx.fillRect(0, groundY, W, 6);
+
+    ctx.strokeStyle = '#2f7d2f';
+    ctx.lineWidth = 2;
+    ctx.lineCap = 'round';
+    const tp = 44, to = -(distance % tp);
+    for (let x = to; x < W + tp; x += tp) {
+      line(x, groundY + 4, x - 4, groundY - 8);
+      line(x + 3, groundY + 4, x + 6, groundY - 7);
+    }
+    const fp = 150, fo = -(distance % fp);
+    for (let x = fo; x < W + fp; x += fp) {
+      ctx.fillStyle = '#fff';
+      circle(x + 40, groundY + 28, 4);
+      ctx.fillStyle = '#ffd94d';
+      circle(x + 40, groundY + 28, 1.8);
+    }
+  }
+
+  // Болото: вода с бликами и кувшинками, круги от лягушки.
+  function drawPond() {
+    const g = ctx.createLinearGradient(0, groundY, 0, H);
+    g.addColorStop(0, '#5cc0f0');
+    g.addColorStop(1, '#2a7fb5');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, groundY, W, H - groundY);
+    ctx.fillStyle = '#6cc36c';
+    ctx.fillRect(0, groundY - 3, W, 4);
+
+    ctx.strokeStyle = 'rgba(255,255,255,0.35)';
+    ctx.lineWidth = 2;
+    ctx.lineCap = 'round';
+    const wp = 90, wo = -(distance % wp);
+    for (let x = wo; x < W + wp; x += wp) {
+      line(x, groundY + 26, x + 26, groundY + 26);
+      line(x + 44, groundY + 54, x + 62, groundY + 54);
+    }
+    const lp = 210, lo = -(distance % lp);
+    for (let x = lo; x < W + lp; x += lp) {
+      ctx.fillStyle = '#3c9d4a';
+      ellipse(x + 60, groundY + 14, 24, 8);
+      ctx.fillStyle = '#ff7eb6';
+      circle(x + 66, groundY + 9, 4);
+    }
+    ctx.strokeStyle = 'rgba(255,255,255,0.6)';
+    ctx.lineWidth = 2;
+    for (const r of boss.ripples) {
+      ctx.globalAlpha = Math.max(0, 1 - r.t);
+      ctx.beginPath();
+      ctx.ellipse(r.x, r.y, r.r, r.r * 0.35, 0, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  function drawFrog() {
+    const b = boss, f = frogPos(), m = mouthPos();
+    ctx.fillStyle = '#2f8f3a';
+    ellipse(W - 82, groundY + 8, 64, 15); // кувшинка лягушки
+    if (b.phase === 'gone') return;
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(0, 0, W, groundY + 6);
+    ctx.clip(); // под водой лягушку не видно
+    ctx.fillStyle = '#3d9a42';
+    ellipse(f.x - 32, f.y + 22, 15, 7);
+    ellipse(f.x + 30, f.y + 22, 15, 7);
+    ctx.fillStyle = '#4caf50';
+    ellipse(f.x, f.y, 46, 30);
+    ctx.fillStyle = '#9ad98a';
+    ellipse(f.x - 4, f.y + 10, 30, 13);
+    for (const ex of [f.x - 20, f.x + 4]) { // глаза смотрят на стрекозу; уставшая — крестики
+      ctx.fillStyle = '#4caf50';
+      circle(ex, f.y - 26, 12);
+      ctx.fillStyle = '#fff';
+      circle(ex, f.y - 28, 9);
+      if (b.phase === 'tired') {
+        ctx.strokeStyle = '#123';
+        ctx.lineWidth = 2.5;
+        ctx.lineCap = 'round';
+        line(ex - 4, f.y - 32, ex + 4, f.y - 24);
+        line(ex + 4, f.y - 32, ex - 4, f.y - 24);
+      } else {
+        ctx.fillStyle = '#123';
+        circle(ex - 3, f.y - 28, 4);
+      }
+    }
+    ctx.fillStyle = '#7a1f2e';
+    ellipse(m.x + 8, m.y, 18, 2.5 + 12 * b.mouth); // рот раскрывается перед выстрелом
+    if (b.tip) {
+      ctx.strokeStyle = '#ff6f91';
+      ctx.lineWidth = 12;
+      ctx.lineCap = 'round';
+      line(m.x, m.y, b.tip.x, b.tip.y);
+      ctx.fillStyle = '#ff4d7a';
+      circle(b.tip.x, b.tip.y, 9);
+    }
+    ctx.restore();
+    if (b.phase === 'windup') {
+      ctx.font = 'bold 36px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.lineWidth = 5;
+      ctx.strokeStyle = '#b00020';
+      ctx.strokeText('!', f.x - 8, f.y - 56);
+      ctx.fillStyle = '#fff';
+      ctx.fillText('!', f.x - 8, f.y - 56);
     }
   }
 
@@ -847,7 +1070,7 @@
   if (!Array.isArray(skins.owned)) skins.owned = ['teal'];
   if (!skins.owned.includes('teal')) skins.owned.push('teal');
   const run = loadJson(KEYS.run, null);
-  level = clamp(Number(run ? run.level : load(KEYS.level, 1)) || 1, 1, CFG.levels);
+  level = clamp(Number(run ? run.level : load(KEYS.level, 1)) || 1, 1, BOSS_LEVEL);
   resize();
   setupRun(run ? Number(run.score) || 0 : 0, run ? Number(run.lives) || CFG.lives : CFG.lives);
   if (player.name) updateBoard(level);
@@ -868,10 +1091,12 @@
       },
       endLevel: () => { slotsLeft = 0; nextSpawn = distance; },
       addCoins: (n) => { coins += n; save(KEYS.coins, coins); updateHud(); },
+      attack: () => { if (boss) { boss.target = { x: hero.x + 6, y: hero.y }; setPhase('windup'); } },
       setLevel: (n) => { level = n; setupRun(0, CFG.lives); updateHud(); updateStartLabel(); },
       get: () => ({
         state, level, slotsLeft, lives, coins, levelCoins, score, best, hurt, restY: restY(),
         skins: { current: skins.current, owned: [...skins.owned] },
+        boss: boss && { phase: boss.phase, attacks: boss.attacks, t: +boss.t.toFixed(2), tip: boss.tip && { x: Math.round(boss.tip.x), y: Math.round(boss.tip.y) } },
         player: { ...player }, board: JSON.parse(JSON.stringify(board)), finish: finish && { ...finish },
         hero: { ...hero }, obstacles: obstacles.map((o) => ({ ...o })), pickups: pickups.map((p) => ({ ...p })),
       }),
