@@ -32,6 +32,10 @@ canvas { position: fixed; inset: 0; display: block; }
 }
 #score { font-size: 34px; font-weight: 800; line-height: 1; }
 #best { display: block; margin-top: 2px; font-size: 15px; font-weight: 600; opacity: .9; }
+#lives { display: block; margin-top: 6px; font-size: 22px; line-height: 1; letter-spacing: 2px; color: #ff4d6d; }
+#lives .lost { opacity: .3; }
+#coins { display: inline-flex; align-items: center; gap: 6px; margin-top: 6px; font-size: 18px; font-weight: 800; }
+.coin { width: 16px; height: 16px; border-radius: 50%; border: 3px solid #d9a800; background: #ffd94d; }
 #mute {
   pointer-events: auto;
   width: 44px; height: 44px; padding: 0;
@@ -40,6 +44,10 @@ canvas { position: fixed; inset: 0; display: block; }
   font-size: 22px; line-height: 44px;
   cursor: pointer;
 }
+#right { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+#level { font-size: 15px; font-weight: 700; }
+#progress { width: 72px; height: 6px; border-radius: 3px; background: rgba(255, 255, 255, .35); overflow: hidden; }
+#progress i { display: block; width: 0; height: 100%; background: #fff; transition: width .3s; }
 
 .overlay {
   position: fixed; inset: 0;
@@ -53,6 +61,7 @@ canvas { position: fixed; inset: 0; display: block; }
 .overlay p { margin: 0; max-width: 320px; font-size: 20px; line-height: 1.35; }
 .eyebrow { font-size: 14px; letter-spacing: 2px; text-transform: uppercase; opacity: .85; }
 .big { font-size: 28px; }
+.small { font-size: 16px; opacity: .9; }
 .badge { padding: 6px 16px; border-radius: 999px; background: #ff5577; font-size: 18px; font-weight: 800; }
 .tap-hint { margin-top: 24px; font-weight: 700; animation: pulse 1.2s ease-in-out infinite; }
 @keyframes pulse { 50% { opacity: .45; } }
@@ -66,3 +75,8 @@ canvas { position: fixed; inset: 0; display: block; }
   cursor: pointer;
 }
 .btn:active { transform: translateY(4px); box-shadow: 0 2px 0 #d09a00; }
+.link {
+  padding: 6px 10px; border: 0; background: none;
+  color: #fff; font: inherit; font-size: 16px; text-decoration: underline; opacity: .9;
+  cursor: pointer;
+}
