@@ -41,6 +41,7 @@
       <span>Игрок: <b id="player-name">Игрок</b></span>
       <button id="edit-name" class="link" type="button">поменять</button>
       <button id="board-open" class="link" type="button">таблица</button>
+      <button id="shop-open" class="link" type="button">магазин</button>
     </p>
     <p id="start-level" class="small">Уровень 1</p>
     <button id="reset-level" class="link hidden" type="button">начать заново с первого уровня</button>
@@ -61,6 +62,13 @@
     </table>
     <p id="board-note" class="small">Пока здесь только ты.</p>
     <button id="board-close" class="btn" type="button">Закрыть</button>
+  </div>
+
+  <div id="shop" class="overlay hidden">
+    <h1>Магазин</h1>
+    <p class="small">Монеты: <b id="shop-coins">0</b></p>
+    <div id="shop-items"></div>
+    <button id="shop-close" class="btn" type="button">Закрыть</button>
   </div>
 
   <div id="over" class="overlay hidden">
