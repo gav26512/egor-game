@@ -6,13 +6,15 @@
   const canvas = $('game');
   const ctx = canvas.getContext('2d');
   const ui = {
-    score: $('score'), best: $('best'), lives: $('lives'), coins: $('coin-count'), mute: $('mute'),
-    level: $('level'), progress: $('progress-fill'),
-    start: $('start'), over: $('over'), pause: $('pause'), done: $('done'),
-    startLevel: $('start-level'), resetLevel: $('reset-level'),
-    finalScore: $('final-score'), finalBest: $('final-best'), overLevel: $('over-level'),
-    finalCoins: $('final-coins'), totalCoins: $('total-coins'), record: $('record'),
-    doneTitle: $('done-title'), doneText: $('done-text'), doneBtn: $('done-btn'),
+    score: $('score'), best: $('best'), lives: $('lives'), coins: $('coin-count'), coinPlus: $('coin-plus'),
+    mute: $('mute'), level: $('level'), progress: $('progress-fill'),
+    start: $('start'), over: $('over'), pause: $('pause'), done: $('done'), profile: $('profile'), board: $('board'),
+    rules: $('rules'), playerName: $('player-name'), editName: $('edit-name'), boardOpen: $('board-open'),
+    startLevel: $('start-level'), resetLevel: $('reset-level'), tapHint: $('tap-hint'),
+    nameInput: $('name-input'), nameSave: $('name-save'),
+    boardBody: $('board-body'), boardNote: $('board-note'), boardClose: $('board-close'),
+    finalScore: $('final-score'), finalBest: $('final-best'), finalCoins: $('final-coins'), overLevel: $('over-level'),
+    record: $('record'), doneTitle: $('done-title'), doneText: $('done-text'), doneBtn: $('done-btn'),
   };
 
   // Логические пиксели и секунды; общая сложность настраивается здесь, по уровням — в levelCfg.
@@ -27,6 +29,7 @@
     goldCoins: 5, heartCoins: 10,
     scorePerPx: 1 / 25,
     restartDelay: 500,
+    nameMax: 16,
   };
   // С каждым уровнем быстрее, теснее и больше чёрных облачков.
   function levelCfg(n) {
@@ -51,17 +54,18 @@
     { type: 'bush', w: 60, hMin: 60, hMax: 80, weight: 2 },
     { type: 'stone', w: 46, hMin: 50, hMax: 62, weight: 2 },
   ];
-  const BEST_KEY = 'egor-game.best';
-  const COINS_KEY = 'egor-game.coins';
-  const LEVEL_KEY = 'egor-game.level';
-  const MUTE_KEY = 'egor-game.mute';
+  const KEYS = {
+    best: 'egor-game.best', coins: 'egor-game.coins', run: 'egor-game.run', level: 'egor-game.level',
+    device: 'egor-game.device', name: 'egor-game.name', board: 'egor-game.board', mute: 'egor-game.mute',
+  };
 
   let W = 0, H = 0, groundY = 0;
   let state = 'ready';                 // ready | playing | paused | over | done
   let hero, obstacles, pickups, pops, clouds, finish;
   let level = 1, lvl, slotsLeft;
-  let speed, distance, score, nextSpawn, lives, coins, banked, hurt;
-  let best = 0, totalCoins = 0, muted = false;
+  let speed, distance, score, nextSpawn, lives, levelCoins, hurt;
+  let best = 0, coins = 0, muted = false;
+  let player, board;                   // игрок этого телефона и таблица результатов
   let clock = 0, lastTs = null, overAt = 0, flash = 0;
 
   const rand = (a, b) => a + Math.random() * (b - a);
@@ -75,6 +79,7 @@
   const obstacleBox = (o) => (o.dy !== undefined
     ? { x: o.x + 4, y: airY(o) - o.h / 2 + 4, w: o.w - 8, h: o.h - 8 }
     : { x: o.x + 4, y: groundY - o.h + 4, w: o.w - 8, h: o.h });
+  const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
   function pick(list) {
     let r = Math.random() * list.reduce((s, o) => s + o.weight, 0);
@@ -87,8 +92,16 @@
     try { const v = localStorage.getItem(key); return v === null ? def : v; } catch (e) { return def; }
   }
   function save(key, val) {
-    try { localStorage.setItem(key, String(val)); } catch (e) { /* приватный режим */ }
+    try { localStorage.setItem(key, typeof val === 'string' ? val : JSON.stringify(val)); } catch (e) { /* приватный режим */ }
   }
+  function loadJson(key, def) {
+    try { const v = JSON.parse(load(key, '')); return v && typeof v === 'object' ? v : def; } catch (e) { return def; }
+  }
+  function newId() {
+    return crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
+  }
+  // Точка, с которой продолжится игра: уровень, очки и жизни на его старте.
+  function saveRun(l = level, s = score, v = lives) { save(KEYS.run, { level: l, score: s, lives: v }); }
 
   // ---------- звук: короткие бипы на Web Audio, без файлов ----------
   const sfx = (() => {
@@ -141,9 +154,11 @@
   }
 
   // ---------- состояния ----------
-  // Новый забег: очки, монеты и жизни с нуля, уровень — текущий.
-  function reset() {
-    score = 0; coins = 0; banked = 0; lives = CFG.lives; distance = 0;
+  // Забег с заданными очками и жизнями на текущем уровне; очки продолжаются через дистанцию.
+  function setupRun(s, v) {
+    score = s;
+    lives = clamp(v, 1, CFG.livesMax);
+    distance = s / CFG.scorePerPx;
     startLevel();
   }
   function startLevel() {
@@ -152,9 +167,10 @@
     obstacles = []; pickups = []; pops = []; finish = null;
     speed = lvl.speedStart;
     slotsLeft = lvl.slots;
-    hurt = 0; flash = 0;
+    levelCoins = 0; hurt = 0; flash = 0;
     nextSpawn = distance + lvl.gapMax * speed;
     if (!clouds) clouds = Array.from({ length: 5 }, (_, i) => makeCloud(i * W / 5 + rand(0, 80)));
+    saveRun();
   }
 
   function makeCloud(x) {
@@ -168,28 +184,19 @@
     showOverlay(null);
     updateHud();
   }
-  function startGame() { reset(); play(); }
-  function pause() { state = 'paused'; showOverlay(ui.pause); }
+  function pause() { state = 'paused'; saveRun(); showOverlay(ui.pause); }
   function resume() { state = 'playing'; lastTs = null; showOverlay(null); }
 
   function nextLevel() {
-    if (level >= CFG.levels) { level = 1; save(LEVEL_KEY, level); startGame(); return; }
+    if (level >= CFG.levels) { level = 1; setupRun(0, CFG.lives); play(); return; }
     level++;
-    save(LEVEL_KEY, level);
     startLevel();
     play();
   }
 
-  // Монеты уходят в копилку после каждого уровня и при проигрыше, без двойного счёта.
-  function bank() {
-    totalCoins += coins - banked;
-    banked = coins;
-    save(COINS_KEY, totalCoins);
-  }
   function finishRun() {
-    bank();
     const isRecord = score > best;
-    if (isRecord) { best = score; save(BEST_KEY, best); }
+    if (isRecord) { best = score; save(KEYS.best, best); }
     return isRecord;
   }
 
@@ -198,13 +205,15 @@
     overAt = performance.now();
     if (level >= CFG.levels) {
       finishRun();
+      updateBoard(CFG.levels);
       ui.doneTitle.textContent = 'Победа!';
       ui.doneText.textContent = `Все ${CFG.levels} уровней пройдены! Очки: ${score}`;
       ui.doneBtn.textContent = 'Сначала';
     } else {
-      bank();
+      saveRun(level + 1);
+      updateBoard(level + 1);
       ui.doneTitle.textContent = `Уровень ${level} пройден!`;
-      ui.doneText.textContent = `Монеты: ${coins}`;
+      ui.doneText.textContent = `Монеты за уровень: +${levelCoins} · всего ${coins}`;
       ui.doneBtn.textContent = 'Дальше';
     }
     if (navigator.vibrate) navigator.vibrate([40, 40, 40]);
@@ -217,13 +226,14 @@
     overAt = performance.now();
     flash = 1;
     const isRecord = finishRun();
+    updateBoard(level);
+    saveRun(level, 0, CFG.lives);
     if (navigator.vibrate) navigator.vibrate(isRecord ? [60, 40, 60] : 80);
     sfx.crash();
     if (isRecord) setTimeout(sfx.fanfare, 350);
     ui.finalScore.textContent = score;
     ui.finalBest.textContent = best;
     ui.finalCoins.textContent = coins;
-    ui.totalCoins.textContent = totalCoins;
     ui.overLevel.textContent = 'Уровень ' + level;
     ui.record.classList.toggle('hidden', !isRecord);
     showOverlay(ui.over);
@@ -231,13 +241,14 @@
   }
 
   function showOverlay(el) {
-    for (const o of [ui.start, ui.over, ui.pause, ui.done]) o.classList.toggle('hidden', o !== el);
+    for (const o of [ui.start, ui.over, ui.pause, ui.done, ui.profile, ui.board]) o.classList.toggle('hidden', o !== el);
   }
   function updateHud() {
     ui.score.textContent = score;
     ui.best.textContent = 'Рекорд ' + best;
     ui.lives.innerHTML = '♥'.repeat(lives) + '<span class="lost">' + '♥'.repeat(CFG.livesMax - lives) + '</span>';
     ui.coins.textContent = coins;
+    ui.coinPlus.textContent = levelCoins > 0 ? '+' + levelCoins : '';
     ui.level.textContent = 'Уровень ' + level;
     updateProgress();
   }
@@ -245,8 +256,40 @@
     ui.progress.style.width = Math.round((lvl.slots - slotsLeft) / lvl.slots * 100) + '%';
   }
   function updateStartLabel() {
-    ui.startLevel.textContent = 'Уровень ' + level;
-    ui.resetLevel.classList.toggle('hidden', level <= 1);
+    const resumed = score > 0;
+    ui.playerName.textContent = player.name;
+    ui.rules.classList.toggle('hidden', best > 0 || level > 1); // правила — только новичку
+    ui.startLevel.textContent = resumed ? `Уровень ${level} · Очки ${score} · ${'♥'.repeat(lives)}` : `Уровень ${level}`;
+    ui.tapHint.textContent = resumed ? 'Нажми, чтобы продолжить' : 'Нажми, чтобы начать';
+    ui.resetLevel.classList.toggle('hidden', level <= 1 && !resumed);
+  }
+
+  // ---------- игрок и таблица ----------
+  // Запись игрока: лучший результат, до какого уровня дошёл и монеты в копилке.
+  function updateBoard(reached) {
+    const e = board[player.id] || {};
+    board[player.id] = {
+      name: player.name, best, coins,
+      maxLevel: Math.max(e.maxLevel || 1, reached),
+      at: Date.now(),
+    };
+    save(KEYS.board, board);
+  }
+  function renderBoard() {
+    const rows = Object.entries(board)
+      .map(([id, e]) => ({ id, ...e }))
+      .sort((a, b) => b.best - a.best || b.maxLevel - a.maxLevel || b.coins - a.coins);
+    ui.boardBody.innerHTML = rows.map((r, i) =>
+      `<tr${r.id === player.id ? ' class="me"' : ''}><td>${i + 1}</td><td>${esc(r.name)}</td><td>${r.best}</td><td>${r.maxLevel}</td><td>${r.coins}</td></tr>`
+    ).join('');
+    ui.boardNote.classList.toggle('hidden', rows.length > 1);
+  }
+  function saveName() {
+    player.name = ui.nameInput.value.trim().slice(0, CFG.nameMax) || 'Игрок';
+    save(KEYS.name, player.name);
+    updateBoard(level);
+    updateStartLabel();
+    showOverlay(ui.start);
   }
 
   // ---------- игровая логика ----------
@@ -296,20 +339,23 @@
 
   function pop(x, y, text, color) { pops.push({ x, y, text, color, t: 0 }); }
 
+  function addCoins(n, x, y) {
+    coins += n;
+    levelCoins += n;
+    save(KEYS.coins, coins);
+    pop(x, y, '+' + n, '#ffd94d');
+    sfx.coin();
+  }
   function collect(p) {
     const cx = p.x + p.w / 2, top = airY(p) - p.h / 2;
     if (p.type === 'gold') {
-      coins += CFG.goldCoins;
-      pop(cx, top, '+' + CFG.goldCoins, '#ffd94d');
-      sfx.coin();
+      addCoins(CFG.goldCoins, cx, top);
     } else if (lives < CFG.livesMax) {
       lives++;
       pop(cx, top, '+♥', '#ff4d6d');
       sfx.heart();
     } else { // жизни полные — сердечко превращается в монетки
-      coins += CFG.heartCoins;
-      pop(cx, top, '+' + CFG.heartCoins, '#ffd94d');
-      sfx.coin();
+      addCoins(CFG.heartCoins, cx, top);
     }
     updateHud();
   }
@@ -379,11 +425,11 @@
     if (e.pointerType === 'mouse' && e.button !== 0) return;
     if (e.cancelable) e.preventDefault();
     sfx.unlock();
-    if (state === 'ready') startGame();
+    if (state === 'ready') play();
     else if (state === 'playing') jump();
     else if (state === 'paused') resume();
     else if (performance.now() - overAt > CFG.restartDelay) {
-      if (state === 'over') startGame();
+      if (state === 'over') { setupRun(0, CFG.lives); play(); }
       else if (state === 'done') nextLevel();
     }
   }
@@ -392,29 +438,41 @@
   window.addEventListener('pointerup', release);
   window.addEventListener('pointercancel', release);
   window.addEventListener('keydown', (e) => {
+    if (e.target.tagName === 'INPUT') return;
     if ((e.code === 'Space' || e.code === 'ArrowUp') && !e.repeat) press(e);
   });
   window.addEventListener('keyup', (e) => {
     if (e.code === 'Space' || e.code === 'ArrowUp') release();
   });
-  for (const b of [ui.mute, ui.resetLevel]) b.addEventListener('pointerdown', (e) => e.stopPropagation());
+  // Кнопки и экраны с формами не должны запускать игру или прыжок.
+  for (const el of [ui.mute, ui.resetLevel, ui.editName, ui.boardOpen, ui.profile, ui.board]) {
+    el.addEventListener('pointerdown', (e) => e.stopPropagation());
+  }
   ui.mute.addEventListener('click', () => {
     muted = !muted;
-    save(MUTE_KEY, muted ? 1 : 0);
+    save(KEYS.mute, muted ? '1' : '0');
     ui.mute.textContent = muted ? '🔇' : '🔊';
   });
   ui.resetLevel.addEventListener('click', () => {
     level = 1;
-    save(LEVEL_KEY, level);
-    reset();
+    setupRun(0, CFG.lives);
     updateHud();
     updateStartLabel();
   });
+  ui.editName.addEventListener('click', () => {
+    ui.nameInput.value = player.name;
+    showOverlay(ui.profile);
+    ui.nameInput.focus();
+  });
+  ui.nameSave.addEventListener('click', saveName);
+  ui.nameInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') saveName(); });
+  ui.boardOpen.addEventListener('click', () => { renderBoard(); showOverlay(ui.board); });
+  ui.boardClose.addEventListener('click', () => showOverlay(ui.start));
   document.addEventListener('visibilitychange', () => {
     if (document.hidden && state === 'playing') pause();
   });
   for (const ev of ['touchmove', 'gesturestart', 'contextmenu']) {
-    document.addEventListener(ev, (e) => e.preventDefault(), { passive: false });
+    document.addEventListener(ev, (e) => { if (e.target.tagName !== 'INPUT') e.preventDefault(); }, { passive: false });
   }
   window.addEventListener('resize', resize);
 
@@ -704,16 +762,21 @@
   }
 
   // ---------- запуск ----------
-  best = Number(load(BEST_KEY, 0)) || 0;
-  totalCoins = Number(load(COINS_KEY, 0)) || 0;
-  level = clamp(Number(load(LEVEL_KEY, 1)) || 1, 1, CFG.levels);
-  muted = load(MUTE_KEY, '0') === '1';
+  best = Number(load(KEYS.best, 0)) || 0;
+  coins = Number(load(KEYS.coins, 0)) || 0;
+  muted = load(KEYS.mute, '0') === '1';
   ui.mute.textContent = muted ? '🔇' : '🔊';
+  player = { id: load(KEYS.device, '') || newId(), name: load(KEYS.name, '').trim().slice(0, CFG.nameMax) };
+  save(KEYS.device, player.id);
+  board = loadJson(KEYS.board, {});
+  const run = loadJson(KEYS.run, null);
+  level = clamp(Number(run ? run.level : load(KEYS.level, 1)) || 1, 1, CFG.levels);
   resize();
-  reset();
+  setupRun(run ? Number(run.score) || 0 : 0, run ? Number(run.lives) || CFG.lives : CFG.lives);
+  if (player.name) updateBoard(level);
   updateHud();
   updateStartLabel();
-  showOverlay(ui.start);
+  showOverlay(player.name ? ui.start : ui.profile);
   requestAnimationFrame(frame);
 
   // Для проверки: ?debug в адресе даёт window.__debug со спавном и состоянием.
@@ -727,9 +790,10 @@
         nextSpawn = Infinity;
       },
       endLevel: () => { slotsLeft = 0; nextSpawn = distance; },
-      setLevel: (n) => { level = n; reset(); updateHud(); updateStartLabel(); },
+      setLevel: (n) => { level = n; setupRun(0, CFG.lives); updateHud(); updateStartLabel(); },
       get: () => ({
-        state, level, slotsLeft, lives, coins, score, hurt, restY: restY(), finish: finish && { ...finish },
+        state, level, slotsLeft, lives, coins, levelCoins, score, best, hurt, restY: restY(),
+        player: { ...player }, board: JSON.parse(JSON.stringify(board)), finish: finish && { ...finish },
         hero: { ...hero }, obstacles: obstacles.map((o) => ({ ...o })), pickups: pickups.map((p) => ({ ...p })),
       }),
     };
