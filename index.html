@@ -23,7 +23,7 @@
       <span id="score">0</span>
       <span id="best">Рекорд 0</span>
       <span id="lives" aria-label="Жизни"></span>
-      <span id="coins" aria-label="Монеты"><i class="coin"></i><b id="coin-count">0</b></span>
+      <span id="coins" aria-label="Монеты"><i class="coin"></i><b id="coin-count">0</b><small id="coin-plus"></small></span>
     </div>
     <div id="right">
       <button id="mute" type="button" aria-label="Звук">🔊</button>
@@ -35,11 +35,32 @@
   <div id="start" class="overlay">
     <p class="eyebrow">Игра Егора</p>
     <h1>Стрекоза</h1>
-    <p>Тапни — стрекоза подпрыгнет.<br>Держи палец дольше — взлетит выше.</p>
-    <p class="small">Золотое облачко даёт монетки, сердечко — жизнь.<br>Чёрное облачко, камни и кусты — опасны!<br>Долети до флажка — откроется следующий уровень.</p>
+    <p>Тапни — прыжок. Держи дольше — выше.</p>
+    <p id="rules" class="small">Золотое облачко — монетки, сердечко — жизнь.<br>Чёрное облачко, камни и кусты — опасны!<br>Долети до флажка — следующий уровень.</p>
+    <p class="row small">
+      <span>Игрок: <b id="player-name">Игрок</b></span>
+      <button id="edit-name" class="link" type="button">поменять</button>
+      <button id="board-open" class="link" type="button">таблица</button>
+    </p>
     <p id="start-level" class="small">Уровень 1</p>
-    <button id="reset-level" class="link hidden" type="button">начать с первого уровня</button>
-    <p class="tap-hint">Нажми, чтобы начать</p>
+    <button id="reset-level" class="link hidden" type="button">начать заново с первого уровня</button>
+    <p id="tap-hint" class="tap-hint">Нажми, чтобы начать</p>
+  </div>
+
+  <div id="profile" class="overlay hidden">
+    <h1>Как тебя зовут?</h1>
+    <input id="name-input" maxlength="16" autocomplete="off" autocapitalize="words" placeholder="Имя">
+    <button id="name-save" class="btn" type="button">Готово</button>
+  </div>
+
+  <div id="board" class="overlay hidden">
+    <h1>Таблица</h1>
+    <table>
+      <thead><tr><th>#</th><th>Имя</th><th>Рекорд</th><th>Ур.</th><th>Монеты</th></tr></thead>
+      <tbody id="board-body"></tbody>
+    </table>
+    <p id="board-note" class="small">Пока здесь только ты.</p>
+    <button id="board-close" class="btn" type="button">Закрыть</button>
   </div>
 
   <div id="over" class="overlay hidden">
@@ -47,14 +68,14 @@
     <p id="over-level" class="small">Уровень 1</p>
     <p id="record" class="badge hidden">Новый рекорд!</p>
     <p class="big">Очки: <b id="final-score">0</b></p>
-    <p>Монеты: <b id="final-coins">0</b> · всего <b id="total-coins">0</b></p>
+    <p>Монеты: <b id="final-coins">0</b></p>
     <p>Рекорд: <b id="final-best">0</b></p>
     <button class="btn" type="button">Ещё раз</button>
   </div>
 
   <div id="done" class="overlay hidden">
     <h1 id="done-title">Уровень 1 пройден!</h1>
-    <p id="done-text" class="big">Монеты: 0</p>
+    <p id="done-text" class="big">Монеты за уровень: +0</p>
     <button id="done-btn" class="btn" type="button">Дальше</button>
   </div>
 
