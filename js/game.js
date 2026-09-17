@@ -4,7 +4,9 @@
 
   const $ = (id) => document.getElementById(id);
   const canvas = $('game');
-  const ctx = canvas.getContext('2d');
+  let ctx = canvas.getContext('2d');
+  // Рисовалки берут ctx из замыкания; так их можно направить на другой холст (превью в магазине).
+  function withContext(c, fn) { const main = ctx; ctx = c; try { fn(); } finally { ctx = main; } }
   const ui = {
     score: $('score'), best: $('best'), lives: $('lives'), coins: $('coin-count'), coinPlus: $('coin-plus'),
     mute: $('mute'), level: $('level'), progress: $('progress-fill'),
@@ -13,6 +15,7 @@
     startLevel: $('start-level'), resetLevel: $('reset-level'), tapHint: $('tap-hint'),
     nameInput: $('name-input'), nameSave: $('name-save'),
     boardBody: $('board-body'), boardNote: $('board-note'), boardClose: $('board-close'),
+    shop: $('shop'), shopOpen: $('shop-open'), shopClose: $('shop-close'), shopCoins: $('shop-coins'), shopItems: $('shop-items'),
     finalScore: $('final-score'), finalBest: $('final-best'), finalCoins: $('final-coins'), overLevel: $('over-level'),
     record: $('record'), doneTitle: $('done-title'), doneText: $('done-text'), doneBtn: $('done-btn'),
   };
@@ -54,9 +57,17 @@
     { type: 'bush', w: 60, hMin: 60, hMax: 80, weight: 2 },
     { type: 'stone', w: 46, hMin: 50, hMax: 62, weight: 2 },
   ];
+  // Расцветки стрекозы в магазине; бирюзовая — базовая и бесплатная.
+  const SKINS = [
+    { id: 'gold', name: 'Золотая', price: 100, tail: '#f2c230', stripe: '#b8860b', thorax: '#e8b420', head: '#ffd23f', smile: '#8a6400', wing: 'rgba(255,245,205,0.85)', wingStroke: 'rgba(200,150,40,0.9)' },
+    { id: 'red', name: 'Красная', price: 50, tail: '#e8443a', stripe: '#a32a22', thorax: '#d93d33', head: '#ff5a4f', smile: '#7a1a12', wing: 'rgba(255,228,228,0.85)', wingStroke: 'rgba(200,80,70,0.9)' },
+    { id: 'emerald', name: 'Изумрудная', price: 50, tail: '#2ecc71', stripe: '#1e8a4c', thorax: '#27b463', head: '#3ddc84', smile: '#14663a', wing: 'rgba(222,255,236,0.85)', wingStroke: 'rgba(60,170,110,0.9)' },
+    { id: 'teal', name: 'Бирюзовая', price: 0, tail: '#2bb3a8', stripe: '#1c7f78', thorax: '#2fa88f', head: '#33b8ad', smile: '#0f5a52', wing: 'rgba(236,248,255,0.85)', wingStroke: 'rgba(70,140,210,0.9)' },
+  ];
   const KEYS = {
     best: 'egor-game.best', coins: 'egor-game.coins', run: 'egor-game.run', level: 'egor-game.level',
     device: 'egor-game.device', name: 'egor-game.name', board: 'egor-game.board', mute: 'egor-game.mute',
+    skins: 'egor-game.skins',
   };
 
   let W = 0, H = 0, groundY = 0;
@@ -66,6 +77,7 @@
   let speed, distance, score, nextSpawn, lives, levelCoins, hurt;
   let best = 0, coins = 0, muted = false;
   let player, board;                   // игрок этого телефона и таблица результатов
+  let skins;                           // купленные расцветки и выбранная
   let clock = 0, lastTs = null, overAt = 0, flash = 0;
 
   const rand = (a, b) => a + Math.random() * (b - a);
@@ -241,7 +253,7 @@
   }
 
   function showOverlay(el) {
-    for (const o of [ui.start, ui.over, ui.pause, ui.done, ui.profile, ui.board]) o.classList.toggle('hidden', o !== el);
+    for (const o of [ui.start, ui.over, ui.pause, ui.done, ui.profile, ui.board, ui.shop]) o.classList.toggle('hidden', o !== el);
   }
   function updateHud() {
     ui.score.textContent = score;
@@ -290,6 +302,54 @@
     updateBoard(level);
     updateStartLabel();
     showOverlay(ui.start);
+  }
+
+  // ---------- магазин расцветок ----------
+  const skin = () => SKINS.find((s) => s.id === skins.current) || SKINS[SKINS.length - 1];
+  function saveSkins() { save(KEYS.skins, skins); }
+  function renderShop() {
+    ui.shopCoins.textContent = coins;
+    ui.shopItems.innerHTML = SKINS.map((s) => {
+      const owned = skins.owned.includes(s.id), current = skins.current === s.id;
+      const action = current ? '<span class="tag">Выбрана</span>'
+        : owned ? `<button class="btn small-btn" type="button" data-skin="${s.id}" data-act="select">Выбрать</button>`
+          : `<button class="btn small-btn" type="button" data-skin="${s.id}" data-act="buy"${coins < s.price ? ' disabled' : ''}>Купить</button>`;
+      const note = s.price ? (owned ? 'куплена' : `${s.price} монет`) : 'бесплатно';
+      return `<div class="skin${current ? ' current' : ''}"><canvas data-skin="${s.id}"></canvas>`
+        + `<span class="skin-info"><b>${s.name}</b><small>${note}</small></span>${action}</div>`;
+    }).join('');
+    for (const cv of ui.shopItems.querySelectorAll('canvas')) drawPreview(cv, SKINS.find((s) => s.id === cv.dataset.skin));
+  }
+  function drawPreview(cv, pal) {
+    const dpr = Math.min(window.devicePixelRatio || 1, 3), w = 104, h = 60;
+    cv.width = w * dpr;
+    cv.height = h * dpr;
+    cv.style.width = w + 'px';
+    cv.style.height = h + 'px';
+    const c = cv.getContext('2d');
+    c.setTransform(dpr, 0, 0, dpr, 0, 0);
+    c.translate(w / 2 + 8, h / 2 + 4);
+    c.scale(1.4, 1.4);
+    withContext(c, () => drawDragonfly(pal, 0.2, 0));
+  }
+  function buySkin(id) {
+    const s = SKINS.find((x) => x.id === id);
+    if (!s || skins.owned.includes(id) || coins < s.price) return;
+    coins -= s.price;
+    save(KEYS.coins, coins);
+    skins.owned.push(id);
+    skins.current = id;
+    saveSkins();
+    updateBoard(level);
+    updateHud();
+    sfx.fanfare();
+    renderShop();
+  }
+  function selectSkin(id) {
+    if (!skins.owned.includes(id)) return;
+    skins.current = id;
+    saveSkins();
+    renderShop();
   }
 
   // ---------- игровая логика ----------
@@ -445,7 +505,7 @@
     if (e.code === 'Space' || e.code === 'ArrowUp') release();
   });
   // Кнопки и экраны с формами не должны запускать игру или прыжок.
-  for (const el of [ui.mute, ui.resetLevel, ui.editName, ui.boardOpen, ui.profile, ui.board]) {
+  for (const el of [ui.mute, ui.resetLevel, ui.editName, ui.boardOpen, ui.shopOpen, ui.profile, ui.board, ui.shop]) {
     el.addEventListener('pointerdown', (e) => e.stopPropagation());
   }
   ui.mute.addEventListener('click', () => {
@@ -468,6 +528,14 @@
   ui.nameInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') saveName(); });
   ui.boardOpen.addEventListener('click', () => { renderBoard(); showOverlay(ui.board); });
   ui.boardClose.addEventListener('click', () => showOverlay(ui.start));
+  ui.shopOpen.addEventListener('click', () => { renderShop(); showOverlay(ui.shop); });
+  ui.shopClose.addEventListener('click', () => showOverlay(ui.start));
+  ui.shopItems.addEventListener('click', (e) => {
+    const b = e.target.closest('button[data-skin]');
+    if (!b) return;
+    if (b.dataset.act === 'buy') buySkin(b.dataset.skin);
+    else selectSkin(b.dataset.skin);
+  });
   document.addEventListener('visibilitychange', () => {
     if (document.hidden && state === 'playing') pause();
   });
@@ -694,30 +762,36 @@
     ctx.save();
     if (hurt > 0 && Math.floor(clock * 10) % 2 === 1) ctx.globalAlpha = 0.35; // мигание после удара
     ctx.translate(hero.x, hero.y + bob);
+    drawDragonfly(skin(), over ? 0.6 : Math.sin(clock * 42), tilt);
+    ctx.restore();
+  }
+
+  // Стрекоза в расцветке pal с центром в начале координат; flap — фаза взмаха, tilt — наклон.
+  function drawDragonfly(pal, flap, tilt) {
+    ctx.save();
     ctx.rotate(tilt);
-    const flap = over ? 0.6 : Math.sin(clock * 42);
-    wings(flap, -1, 0.9);
-    wings(flap, 1, 0.55);
+    wings(pal, flap, -1, 0.9);
+    wings(pal, flap, 1, 0.55);
     // хвост с полосками
     ctx.lineCap = 'round';
-    ctx.strokeStyle = '#2bb3a8';
+    ctx.strokeStyle = pal.tail;
     ctx.lineWidth = 7;
     line(-4, 0, -40, 3);
-    ctx.strokeStyle = '#1c7f78';
+    ctx.strokeStyle = pal.stripe;
     ctx.lineWidth = 2;
     for (const tx of [-14, -22, -30]) line(tx, -3.5, tx, 3.5);
     // грудь, голова, глаз, улыбка
-    ctx.fillStyle = '#2fa88f';
+    ctx.fillStyle = pal.thorax;
     ctx.beginPath();
     ctx.ellipse(2, 0, 9, 6.5, 0, 0, Math.PI * 2);
     ctx.fill();
-    ctx.fillStyle = '#33b8ad';
+    ctx.fillStyle = pal.head;
     circle(12, -1, 7);
     ctx.fillStyle = '#123d5c';
     circle(14.5, -2.5, 3.6);
     ctx.fillStyle = '#fff';
     circle(15.8, -3.8, 1.3);
-    ctx.strokeStyle = '#0f5a52';
+    ctx.strokeStyle = pal.smile;
     ctx.lineWidth = 1.2;
     ctx.beginPath();
     ctx.arc(14, 2.2, 2.4, 0.15 * Math.PI, 0.85 * Math.PI);
@@ -726,12 +800,12 @@
   }
 
   // Пара крыльев: dir -1 — ближняя (вверх), 1 — дальняя (вниз); s — фаза взмаха от -1 до 1.
-  function wings(s, dir, alpha) {
+  function wings(pal, s, dir, alpha) {
     ctx.save();
     ctx.globalAlpha *= alpha;
     ctx.translate(2, dir * 4);
-    ctx.fillStyle = 'rgba(236,248,255,0.85)';
-    ctx.strokeStyle = 'rgba(70,140,210,0.9)';
+    ctx.fillStyle = pal.wing;
+    ctx.strokeStyle = pal.wingStroke;
     ctx.lineWidth = 1.2;
     wing(45 + 28 * s, 34, 6, dir);
     wing(72 + 22 * s, 30, 5.5, dir);
@@ -769,6 +843,9 @@
   player = { id: load(KEYS.device, '') || newId(), name: load(KEYS.name, '').trim().slice(0, CFG.nameMax) };
   save(KEYS.device, player.id);
   board = loadJson(KEYS.board, {});
+  skins = loadJson(KEYS.skins, null) || { owned: ['teal'], current: 'teal' };
+  if (!Array.isArray(skins.owned)) skins.owned = ['teal'];
+  if (!skins.owned.includes('teal')) skins.owned.push('teal');
   const run = loadJson(KEYS.run, null);
   level = clamp(Number(run ? run.level : load(KEYS.level, 1)) || 1, 1, CFG.levels);
   resize();
@@ -790,9 +867,11 @@
         nextSpawn = Infinity;
       },
       endLevel: () => { slotsLeft = 0; nextSpawn = distance; },
+      addCoins: (n) => { coins += n; save(KEYS.coins, coins); updateHud(); },
       setLevel: (n) => { level = n; setupRun(0, CFG.lives); updateHud(); updateStartLabel(); },
       get: () => ({
         state, level, slotsLeft, lives, coins, levelCoins, score, best, hurt, restY: restY(),
+        skins: { current: skins.current, owned: [...skins.owned] },
         player: { ...player }, board: JSON.parse(JSON.stringify(board)), finish: finish && { ...finish },
         hero: { ...hero }, obstacles: obstacles.map((o) => ({ ...o })), pickups: pickups.map((p) => ({ ...p })),
       }),
