@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+  <title>Стрекоза</title>
+  <meta name="description" content="Стрекоза летит над лугом и перепрыгивает препятствия. Игра Егора.">
+  <meta name="theme-color" content="#5fb8ff">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Стрекоза">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icons/icon-180.png">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <canvas id="game"></canvas>
+
+  <div id="hud">
+    <div>
+      <span id="score">0</span>
+      <span id="best">Рекорд 0</span>
+    </div>
+    <button id="mute" type="button" aria-label="Звук">🔊</button>
+  </div>
+
+  <div id="start" class="overlay">
+    <p class="eyebrow">Игра Егора</p>
+    <h1>Стрекоза</h1>
+    <p>Тапни — стрекоза подпрыгнет.<br>Держи палец дольше — взлетит выше.</p>
+    <p class="tap-hint">Нажми, чтобы начать</p>
+  </div>
+
+  <div id="over" class="overlay hidden">
+    <h1>Ой!</h1>
+    <p id="record" class="badge hidden">Новый рекорд!</p>
+    <p class="big">Очки: <b id="final-score">0</b></p>
+    <p>Рекорд: <b id="final-best">0</b></p>
+    <button class="btn" type="button">Ещё раз</button>
+  </div>
+
+  <div id="pause" class="overlay hidden">
+    <h1>Пауза</h1>
+    <p class="tap-hint">Нажми, чтобы продолжить</p>
+  </div>
+
+  <script src="js/game.js"></script>
+</body>
+</html>

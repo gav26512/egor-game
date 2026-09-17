@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#5fb8ff"/>
+      <stop offset="1" stop-color="#c9ecff"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" fill="url(#sky)"/>
+  <circle cx="430" cy="86" r="40" fill="#ffd94d"/>
+  <ellipse cx="120" cy="420" rx="200" ry="70" fill="#8fd48f"/>
+  <ellipse cx="420" cy="430" rx="200" ry="60" fill="#8fd48f"/>
+  <rect y="415" width="512" height="97" fill="#4aa54a"/>
+  <rect y="415" width="512" height="10" fill="#6cc36c"/>
+  <!-- Та же стрекоза, что в игре (js/game.js drawHero), увеличенная в 5.2 раза. -->
+  <g transform="translate(300 262) scale(5.2)">
+    <g fill="rgba(236,248,255,0.85)" stroke="#4a90c8" stroke-width="0.6">
+      <g transform="translate(2 -4)">
+        <ellipse cx="-10.93" cy="-13.02" rx="6" ry="17" transform="rotate(-40 -10.93 -13.02)"/>
+        <ellipse cx="-13.91" cy="-5.62" rx="5.5" ry="15" transform="rotate(-68 -13.91 -5.62)"/>
+      </g>
+      <g transform="translate(2 4)" opacity="0.6">
+        <ellipse cx="-10.93" cy="13.02" rx="6" ry="17" transform="rotate(40 -10.93 13.02)"/>
+        <ellipse cx="-13.91" cy="5.62" rx="5.5" ry="15" transform="rotate(68 -13.91 5.62)"/>
+      </g>
+    </g>
+    <path d="M-4 0 L-40 3" stroke="#2bb3a8" stroke-width="7" stroke-linecap="round" fill="none"/>
+    <path d="M-14 -3.5 V3.5 M-22 -3.5 V3.5 M-30 -3.5 V3.5" stroke="#1c7f78" stroke-width="2" stroke-linecap="round" fill="none"/>
+    <ellipse cx="2" cy="0" rx="9" ry="6.5" fill="#2fa88f"/>
+    <circle cx="12" cy="-1" r="7" fill="#33b8ad"/>
+    <circle cx="14.5" cy="-2.5" r="3.6" fill="#123d5c"/>
+    <circle cx="15.8" cy="-3.8" r="1.3" fill="#fff"/>
+    <path d="M11.86 3.3 A2.4 2.4 0 0 0 16.14 3.3" stroke="#0f5a52" stroke-width="1.2" stroke-linecap="round" fill="none"/>
+  </g>
+</svg>
