@@ -71,6 +71,18 @@
     { type: 'bush', w: 60, hMin: 60, hMax: 80, weight: 2 },
     { type: 'stone', w: 46, hMin: 50, hMax: 62, weight: 2 },
   ];
+  // Расцветка по оттенку h (0–360): тело, полоски, голова и крылья считаются от одного цвета.
+  function hueSkin(id, name, h, price, s = 70, l = 50) {
+    const c = (dh, ds, dl, a) => {
+      const hh = (h + dh + 360) % 360, ss = Math.max(0, Math.min(100, s + ds)), ll = Math.max(0, Math.min(100, l + dl));
+      return a === undefined ? `hsl(${hh}, ${ss}%, ${ll}%)` : `hsla(${hh}, ${ss}%, ${ll}%, ${a})`;
+    };
+    return { id, name, price, tail: c(0, 0, 0), stripe: c(0, 5, -18), thorax: c(8, 0, -3), head: c(15, 0, 8), smile: c(0, 10, -30), wing: c(0, -20, 38, 0.85), wingStroke: c(0, -10, 5, 0.9) };
+  }
+  // Радужная меняет оттенок со временем; остальные палитры отдаются как есть.
+  function livePal(pal) {
+    return pal.fx === 'rainbow' ? { ...hueSkin(pal.id, pal.name, (clock * 90) % 360, pal.price, 85, 55), fx: 'rainbow' } : pal;
+  }
   // Расцветки стрекозы в магазине; бирюзовая — базовая и бесплатная.
   const SKINS = [
     { id: 'gold', name: 'Золотая', price: 100, tail: '#f2c230', stripe: '#b8860b', thorax: '#e8b420', head: '#ffd23f', smile: '#8a6400', wing: 'rgba(255,245,205,0.85)', wingStroke: 'rgba(200,150,40,0.9)' },
@@ -82,6 +94,21 @@
     { id: 'orange', name: 'Оранжевая', price: 100, tail: '#ff9800', stripe: '#e65100', thorax: '#fb8c00', head: '#ffb74d', smile: '#bf360c', wing: 'rgba(255,240,212,0.85)', wingStroke: 'rgba(230,140,40,0.9)' },
     { id: 'fire', name: 'Огненная', price: 100, fx: 'fire', tail: '#ff6a00', stripe: '#b71c1c', thorax: '#ff3d00', head: '#ff8f00', smile: '#7f0000', wing: 'rgba(255,205,90,0.8)', wingStroke: 'rgba(255,90,0,0.9)' },
     { id: 'water', name: 'Водяная', price: 100, fx: 'water', tail: '#29b6f6', stripe: '#0277bd', thorax: '#03a9f4', head: '#4fc3f7', smile: '#01579b', wing: 'rgba(205,240,255,0.85)', wingStroke: 'rgba(0,150,220,0.9)' },
+    hueSkin('yellow', 'Жёлтая', 52, 100, 90, 52),
+    hueSkin('lime', 'Лаймовая', 85, 100, 75, 48),
+    hueSkin('green', 'Зелёная', 135, 100, 60, 40),
+    hueSkin('mint', 'Мятная', 160, 100, 60, 55),
+    hueSkin('sky', 'Голубая', 200, 100, 80, 60),
+    hueSkin('indigo', 'Индиго', 245, 100, 55, 45),
+    hueSkin('magenta', 'Пурпурная', 290, 100, 70, 48),
+    hueSkin('crimson', 'Малиновая', 335, 100, 75, 48),
+    hueSkin('coral', 'Коралловая', 12, 100, 85, 62),
+    hueSkin('brown', 'Коричневая', 25, 100, 55, 35),
+    { id: 'white', name: 'Белая', price: 100, tail: '#f4f4f4', stripe: '#bdbdbd', thorax: '#ececec', head: '#ffffff', smile: '#9e9e9e', wing: 'rgba(255,255,255,0.9)', wingStroke: 'rgba(170,170,170,0.9)' },
+    { id: 'silver', name: 'Серебряная', price: 100, tail: '#c0c6cc', stripe: '#8a9096', thorax: '#b4bac0', head: '#d6dbe0', smile: '#6b7278', wing: 'rgba(240,244,248,0.9)', wingStroke: 'rgba(150,160,170,0.9)' },
+    { id: 'gray', name: 'Серая', price: 100, tail: '#8e8e8e', stripe: '#5e5e5e', thorax: '#828282', head: '#a0a0a0', smile: '#444', wing: 'rgba(225,225,225,0.85)', wingStroke: 'rgba(120,120,120,0.9)' },
+    { id: 'black', name: 'Чёрная', price: 100, tail: '#2b2b2b', stripe: '#000', thorax: '#383838', head: '#4a4a4a', smile: '#000', wing: 'rgba(90,90,90,0.75)', wingStroke: 'rgba(20,20,20,0.9)' },
+    { id: 'rainbow', name: 'Радужная', price: 300, fx: 'rainbow', tail: '#f00', stripe: '#900', thorax: '#f60', head: '#fc0', smile: '#600', wing: 'rgba(255,255,255,0.85)', wingStroke: 'rgba(120,120,120,0.9)' },
     { id: 'teal', name: 'Бирюзовая', price: 0, tail: '#2bb3a8', stripe: '#1c7f78', thorax: '#2fa88f', head: '#33b8ad', smile: '#0f5a52', wing: 'rgba(236,248,255,0.85)', wingStroke: 'rgba(70,140,210,0.9)' },
   ];
   const KEYS = {
@@ -1058,6 +1085,7 @@
 
   // Стрекоза в расцветке pal с центром в начале координат; flap — фаза взмаха, tilt — наклон.
   function drawDragonfly(pal, flap, tilt) {
+    pal = livePal(pal);
     ctx.save();
     ctx.rotate(tilt);
     if (pal.fx === 'fire') { // языки пламени за хвостом дрожат
