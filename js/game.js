@@ -27,8 +27,8 @@
     gravity: 2300, jumpVel: -880,
     jumpCut: -400,              // потолок скорости вверх после отпускания: короткий тап — низкий прыжок
     hoverHeight: 52,            // высота полёта над травой в покое
-    levels: 15,
-    bossEvery: 5,               // каждый пятый уровень — болото с лягушкой
+    levels: 10,
+    bossEvery: 10,              // болото с лягушкой — только на десятом, последнем уровне
     lives: 3, livesMax: 5,
     hurtTime: 1.5,              // неуязвимость после удара, с
     goldCoins: 5, heartCoins: 10,
@@ -37,14 +37,14 @@
     nameMax: 16,
   };
   const isBoss = (n) => n % CFG.bossEvery === 0;
-  // Лягушки: 5-й уровень — разминка, 10-й — серьёзно, 15-й — финал с двумя лягушками.
+  // Лягушка на десятом: 8 выстрелов, иногда два подряд. Следующие ступени — на случай новых болот.
   function bossCfg(n) {
-    const tier = Math.min(3, Math.round(n / CFG.bossEvery)) - 1;
+    const tier = Math.min(2, Math.round(n / CFG.bossEvery) - 1);
     return {
-      attacks: [5, 8, 10][tier],
-      windup: [0.5, 0.4, 0.32][tier],                    // сколько горит «!»
-      wait: [[1.2, 2.0], [1.0, 1.8], [0.8, 1.4]][tier],  // пауза между выстрелами
-      doubles: tier >= 1,                                 // иногда два выстрела подряд
+      attacks: [8, 10, 10][tier],
+      windup: [0.4, 0.35, 0.32][tier],                   // сколько горит «!»
+      wait: [[1.0, 1.8], [0.9, 1.6], [0.8, 1.4]][tier],  // пауза между выстрелами
+      doubles: true,                                      // иногда два выстрела подряд
       twin: tier >= 2,                                    // вторая лягушка слева
     };
   }
@@ -254,7 +254,7 @@
       finishRun();
       updateBoard(CFG.levels);
       ui.doneTitle.textContent = 'Победа!';
-      ui.doneText.textContent = `Лягушки остались голодными! Все ${CFG.levels} уровней пройдены. Очки: ${score}`;
+      ui.doneText.textContent = `${boss && boss.cfg.twin ? 'Лягушки остались голодными' : 'Лягушка осталась голодной'}! Все ${CFG.levels} уровней пройдены. Очки: ${score}`;
       ui.doneBtn.textContent = 'Сначала';
     } else {
       saveRun(level + 1);
