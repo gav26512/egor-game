@@ -145,11 +145,28 @@ function snapCamera() {
 }
 snapCamera();
 
+// Телефон: сенсор без мыши и экран телефонного размера. Компьютеры и ноутбуки с тачскрином сюда не попадают.
+const isPhone = matchMedia('(pointer: coarse) and (hover: none)').matches && navigator.maxTouchPoints > 0
+  && Math.min(screen.width, screen.height) <= 900;
+// Экран «поверни телефон» показываем только на телефоне и только пока он вертикальный.
+const portraitQuery = matchMedia('(orientation: portrait)');
+const updateRotate = () => show('rotate', isPhone && portraitQuery.matches);
+updateRotate();
+portraitQuery.addEventListener('change', updateRotate);
+
+// На телефоне просим полный экран и горизонтальную ориентацию; где нельзя — остаётся экран «поверни телефон».
+async function goLandscape() {
+  if (!isPhone) return;
+  try { if (!document.fullscreenElement) await document.documentElement.requestFullscreen({ navigationUI: 'hide' }); } catch { /* не поддерживается */ }
+  try { await screen.orientation.lock('landscape'); } catch { /* iOS не умеет */ }
+}
+
 function play() {
   state = 'play';
   $('start').classList.add('hidden');
   hud.show(true);
   audio.init();
+  goLandscape();
   canvas.focus();
 }
 
