@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+  <title>Шмель</title>
+  <meta name="description" content="Шмель летает по Оренбургу, залетает в окна, ест и пьёт. Игра Егора.">
+  <meta name="theme-color" content="#8fd3ff">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Шмель">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icons/icon-180.png">
+  <link rel="stylesheet" href="css/style.css">
+  <script src="https://cdn.jsdelivr.net/npm/babylonjs@9.28.0/babylon.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/babylonjs-loaders@9.28.0/babylonjs.loaders.min.js"></script>
+</head>
+<body>
+  <canvas id="game"></canvas>
+
+  <div id="hud" class="hidden">
+    <div id="bars">
+      <div class="bar"><span>🍯</span><i><b id="bar-food"></b></i></div>
+      <div class="bar"><span>💧</span><i><b id="bar-water"></b></i></div>
+      <div class="bar"><span>⚡</span><i><b id="bar-energy"></b></i></div>
+      <div class="bar counter"><span>🐹</span><b id="baibaks">0/10</b></div>
+      <div class="bar counter"><span>🌼</span><b id="pollen">0</b></div>
+    </div>
+    <div id="hud-buttons">
+      <button id="btn-pause" class="hud-btn" type="button" aria-label="Пауза">⏸</button>
+      <button id="btn-mute" class="hud-btn" type="button" aria-label="Звук">🔊</button>
+      <button id="btn-quests" class="hud-btn" type="button" aria-label="Задания">📜</button>
+    </div>
+    <div id="touch" class="hidden">
+      <div id="stick"><i id="knob"></i></div>
+      <div id="touch-right">
+        <button id="btn-boost" class="touch-btn" type="button" aria-label="Быстрее">⚡</button>
+        <button id="btn-up" class="touch-btn" type="button" aria-label="Вверх">▲</button>
+        <button id="btn-down" class="touch-btn" type="button" aria-label="Вниз">▼</button>
+      </div>
+    </div>
+    <div id="center">
+      <span id="place"></span>
+      <span id="hint"></span>
+      <span id="flash" class="hidden"></span>
+    </div>
+  </div>
+
+  <div id="loading" class="overlay">
+    <p class="eyebrow">Игра Егора</p>
+    <h1>Шмель</h1>
+    <p id="loading-text">Загружаю город… 0%</p>
+  </div>
+
+  <div id="start" class="overlay hidden">
+    <p class="eyebrow">Игра Егора</p>
+    <h1>Шмель</h1>
+    <p>Лети над Оренбургом!</p>
+    <p class="small">На телефоне: джойстик слева, кнопки ▲ ▼ ⚡ справа.<br>На компьютере: W A S D — лететь, Пробел — вверх, C — вниз, Shift — быстрее.</p>
+    <p class="small">Ешь нектар с цветов, пей из фонтанов и Урала, залетай в светящиеся окна.<br>Ищи бронзовых байбаков и выполняй задания за пыльцу.</p>
+    <p class="row small">
+      <span>Игрок: <b id="player-name">Игрок</b></span>
+      <button id="edit-name" class="link" type="button">поменять</button>
+      <button id="quests-open" class="link" type="button">задания</button>
+      <button id="shop-open" class="link" type="button">магазин</button>
+    </p>
+    <p class="tap-hint">Нажми, чтобы начать</p>
+  </div>
+
+  <div id="profile" class="overlay panel hidden">
+    <h1>Как тебя зовут?</h1>
+    <input id="name-input" maxlength="16" autocomplete="off" autocapitalize="words" placeholder="Имя">
+    <button id="name-save" class="btn" type="button">Готово</button>
+  </div>
+
+  <div id="quests" class="overlay panel hidden">
+    <h1>Задания</h1>
+    <div id="quest-list" class="list"></div>
+    <button id="quests-close" class="btn" type="button">Закрыть</button>
+  </div>
+
+  <div id="shop" class="overlay panel hidden">
+    <h1>Магазин</h1>
+    <p class="small">Пыльца: <b id="shop-pollen">0</b> 🌼 · цветы дают по одной, байбаки по пять, задания больше</p>
+    <div id="shop-items" class="list"></div>
+    <button id="shop-close" class="btn" type="button">Закрыть</button>
+  </div>
+
+  <div id="pause" class="overlay panel hidden">
+    <h1>Пауза</h1>
+    <button id="resume-btn" class="btn" type="button">Продолжить</button>
+    <button id="menu-btn" class="link" type="button">выйти в меню</button>
+  </div>
+
+  <div id="sleep" class="overlay hidden">
+    <h1>Шмель уснул</h1>
+    <p id="sleep-why">Он очень устал.</p>
+    <p class="small">Проснётся дома, в улье.</p>
+  </div>
+
+  <div id="error" class="overlay hidden">
+    <h1>Ой!</h1>
+    <p>Игра не загрузилась. Проверь интернет и обнови страницу.</p>
+  </div>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
